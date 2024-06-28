@@ -156,6 +156,60 @@ void NavRegion::update_polygons() {
 	}
 }
 
+NavRegion * NavRegion::duplicate_for_sync() {
+	NavRegion * dup = memnew(NavRegion);
+	dup->set_self(get_self());
+	dup->map = map;
+	dup->transform = transform;
+	dup->mesh = mesh;
+	dup->navigation_layers = navigation_layers;
+	dup->enter_cost = enter_cost;
+	dup->travel_cost = travel_cost;
+	
+	dup->polygons_dirty = polygons_dirty;
+
+	dup->polygons.resize(polygons.size());
+	for (size_t i = 0; i < polygons.size(); i++) {
+		dup->polygons[i] = polygons[i];
+		dup->polygons[i].owner = dup;
+	}
+
+	//Connections are not duplicated because it's expensive to update polygon references. 
+	//Plus, they are to be generated again during sync.
+	
+	return dup;
+}
+
+void NavRegion::copy_polygons_and_connections(NavRegion * other_region) {
+	Map<gd::Polygon *, gd::Polygon *> pointer_mappings;
+
+	polygons_dirty = other_region->polygons_dirty;
+	
+	polygons.resize(other_region->polygons.size());
+
+	for (size_t i = 0; i < other_region->polygons.size(); i++)
+	{
+		polygons[i] = other_region->polygons[i];
+		polygons[i].owner = this;
+		pointer_mappings[&other_region->polygons[i]] = &polygons[i];
+	}
+
+	for (size_t i = 0; i < polygons.size(); i++)
+	{
+		for (size_t j = 0; j < polygons[i].edges.size(); j++)
+		{
+			for (size_t k = 0; k < polygons[i].edges[j].connections.size(); k++)
+			{
+				gd::Edge::Connection connection = polygons[i].edges[j].connections[k];
+				connection.polygon = pointer_mappings[connection.polygon];
+				polygons[i].edges[j].connections.set(k, connection);
+			}
+		}
+	}
+
+}
+
+
 NavRegion::NavRegion() {}
 
 NavRegion::~NavRegion() {}

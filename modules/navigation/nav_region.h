@@ -97,6 +97,9 @@ public:
 
 	bool sync();
 
+	NavRegion * duplicate_for_sync();
+	void copy_polygons_and_connections(NavRegion * other_region);
+
 	NavRegion();
 	~NavRegion();
 

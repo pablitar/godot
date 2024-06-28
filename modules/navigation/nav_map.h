@@ -36,6 +36,9 @@
 #include "core/map.h"
 #include "core/math/math_defs.h"
 #include "core/os/thread_work_pool.h"
+#include "core/threaded_callable_queue.h"
+#include "core/os/mutex.h"
+#include "core/pair.h"
 #include "nav_utils.h"
 
 #include <KdTree.h>
@@ -85,6 +88,12 @@ class NavMap : public NavRid {
 #ifndef NO_THREADS
 	/// Pooled threads for computing steps
 	ThreadWorkPool step_work_pool;
+	
+	/// Callable Thread Queue for sync operations
+	ThreadedCallableQueue<uint64_t> sync_queue;
+	uint64_t sync_counter;
+	Mutex sync_mutex;
+	
 #endif // NO_THREADS
 
 public:
@@ -123,6 +132,7 @@ public:
 	void add_region(NavRegion *p_region);
 	void remove_region(NavRegion *p_region);
 	const LocalVector<NavRegion *> &get_regions() const {
+		MutexLock lock(sync_mutex);
 		return regions;
 	}
 
@@ -147,6 +157,7 @@ public:
 private:
 	void compute_single_step(uint32_t index, RvoAgent **agent);
 	void clip_path(const LocalVector<gd::NavigationPoly> &p_navigation_polys, Vector<Vector3> &path, const gd::NavigationPoly *from_poly, const Vector3 &p_to_point, const gd::NavigationPoly *p_to_poly) const;
+	void on_sync_finished(HashMap<uint32_t, NavRegion *> synced_regions);
 };
 
 #endif // NAV_MAP_H
