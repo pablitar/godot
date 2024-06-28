@@ -522,21 +522,46 @@ void NavMap::remove_agent_as_controlled(RvoAgent *agent) {
 }
 
 void NavMap::sync() {
+	sync_counter++;
+
+	// Update agents tree.
+	if (agents_dirty) {
+		// cannot use LocalVector here as RVO library expects std::vector to build KdTree
+		std::vector<RVO::Agent *> raw_agents;
+		raw_agents.reserve(agents.size());
+		for (size_t i(0); i < agents.size(); i++) {
+			raw_agents.push_back(agents[i]->get_agent());
+		}
+		rvo.buildAgentTree(raw_agents);
+	}
+
+	agents_dirty = false;
+
 	HashMap<uint32_t, NavRegion *> regions_for_sync;
 	{
 		MutexLock lock(sync_mutex);
+		if(syncing_in_background) {
+			return;
+		}
+
+		syncing_in_background = true;
+
+		if(regions.size() > 0) {
+			print_line(vformat("%d - Allocating %d", get_id(), sync_counter));
+		}
 		for (size_t i = 0; i < regions.size(); i++)
 		{
 			regions_for_sync[regions[i]->get_id()] = regions[i]->duplicate_for_sync();
 		}
+		
 	}
-
-	sync_counter++;
 
 	bool regen_polys = regenerate_polygons;
 	bool regen_links = regenerate_links;
+	
+	auto scounter = sync_counter;
 
-	sync_queue.enqueue(sync_counter, [regions_for_sync, regen_polys, regen_links, this] () mutable {
+	sync_queue.enqueue(sync_counter, [scounter, regions_for_sync, regen_polys, regen_links, this]() mutable {
 		LocalVector<gd::Polygon> polygons_for_sync;
 		// Check if we need to update the links.
 		if (regen_polys) {
@@ -684,49 +709,61 @@ void NavMap::sync() {
 				}
 			}
 
-			this->on_sync_finished(regions_for_sync);
+			this->on_sync_finished(regions_for_sync, polygons_for_sync);
 		}
+
+		if(regions.size() > 0) {
+			print_line(vformat("Deallocating %d", scounter));
+		}
+		for (const uint32_t * k = nullptr; k = regions_for_sync.next(k);) {
+			memdelete(regions_for_sync[*k]);
+		}
+
+		syncing_in_background = false;
+	
+		// Update the update ID.
+		map_update_id = (map_update_id + 1) % 9999999;
 	});
-
-	// Update agents tree.
-	if (agents_dirty) {
-		// cannot use LocalVector here as RVO library expects std::vector to build KdTree
-		std::vector<RVO::Agent *> raw_agents;
-		raw_agents.reserve(agents.size());
-		for (size_t i(0); i < agents.size(); i++) {
-			raw_agents.push_back(agents[i]->get_agent());
-		}
-		rvo.buildAgentTree(raw_agents);
-	}
-
+	
 	regenerate_polygons = false;
 	regenerate_links = false;
-	agents_dirty = false;
-	
-	// Update the update ID.
-	map_update_id = (map_update_id + 1) % 9999999;
 }
 
-void NavMap::on_sync_finished(HashMap<uint32_t, NavRegion *> synced_regions) {
+void NavMap::on_sync_finished(HashMap<uint32_t, NavRegion *> synced_regions, LocalVector<gd::Polygon> synced_polygons) {
 	MutexLock lock(sync_mutex);
-	polygons.clear();
+	HashMap<uint32_t, NavRegion *> region_pointers_mapping;
 	for (size_t i = 0; i < regions.size(); i++)
 	{
 		if(synced_regions.has(regions[i]->get_id())) {
 			NavRegion * synced_region = synced_regions[regions[i]->get_id()];
+			region_pointers_mapping[synced_region->get_id()] = regions[i];
 			regions[i]->copy_polygons_and_connections(synced_region);
-			uint32_t old_size = polygons.size();
-			const LocalVector<gd::Polygon> &polygons_source = regions[i]->get_polygons();
-			for (size_t j = 0; j < polygons_source.size(); j++)
-			{
-				polygons.push_back(polygons_source[j]);
-			}
-			
 		}
 	}
 
-	for (const uint32_t * k = nullptr; k = synced_regions.next(k);) {
-		memdelete(synced_regions[*k]);
+	//REVISAR PARECE QUE LOS POLÍGONOS NO SE MAPEAN BIEN
+	polygons.resize(synced_polygons.size());
+
+	Map<gd::Polygon *, gd::Polygon *> pointer_mappings;
+
+	for (size_t i = 0; i < polygons.size(); i++)
+	{
+		polygons[i] = synced_polygons[i];
+		polygons[i].owner = region_pointers_mapping[polygons[i].owner->get_id()];
+		pointer_mappings[&synced_polygons[i]] = &polygons[i];
+	}
+
+	for (size_t i = 0; i < polygons.size(); i++)
+	{
+		for (size_t j = 0; j < polygons[i].edges.size(); j++)
+		{
+			for (size_t k = 0; k < polygons[i].edges[j].connections.size(); k++)
+			{
+				gd::Edge::Connection connection = polygons[i].edges[j].connections[k];
+				connection.polygon = pointer_mappings[connection.polygon];
+				polygons[i].edges[j].connections.set(k, connection);
+			}
+		}
 	}
 }
 

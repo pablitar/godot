@@ -91,8 +91,9 @@ class NavMap : public NavRid {
 	
 	/// Callable Thread Queue for sync operations
 	ThreadedCallableQueue<uint64_t> sync_queue;
-	uint64_t sync_counter;
+	uint64_t sync_counter = 0;
 	Mutex sync_mutex;
+	bool syncing_in_background = false;
 	
 #endif // NO_THREADS
 
@@ -157,7 +158,7 @@ public:
 private:
 	void compute_single_step(uint32_t index, RvoAgent **agent);
 	void clip_path(const LocalVector<gd::NavigationPoly> &p_navigation_polys, Vector<Vector3> &path, const gd::NavigationPoly *from_poly, const Vector3 &p_to_point, const gd::NavigationPoly *p_to_poly) const;
-	void on_sync_finished(HashMap<uint32_t, NavRegion *> synced_regions);
+	void on_sync_finished(HashMap<uint32_t, NavRegion *> synced_regions, LocalVector<gd::Polygon> synced_polygons);
 };
 
 #endif // NAV_MAP_H

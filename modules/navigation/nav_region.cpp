@@ -184,12 +184,11 @@ void NavRegion::copy_polygons_and_connections(NavRegion * other_region) {
 	Map<gd::Polygon *, gd::Polygon *> pointer_mappings;
 
 	polygons_dirty = other_region->polygons_dirty;
-	
-	polygons.resize(other_region->polygons.size());
 
-	for (size_t i = 0; i < other_region->polygons.size(); i++)
+	polygons = other_region->polygons;
+
+	for (size_t i = 0; i < polygons.size(); i++)
 	{
-		polygons[i] = other_region->polygons[i];
 		polygons[i].owner = this;
 		pointer_mappings[&other_region->polygons[i]] = &polygons[i];
 	}
@@ -207,6 +206,14 @@ void NavRegion::copy_polygons_and_connections(NavRegion * other_region) {
 		}
 	}
 
+	connections = other_region->connections;
+
+	for (size_t i = 0; i < connections.size(); i++)
+	{
+		gd::Edge::Connection connection = connections[i];
+		connection.polygon = pointer_mappings[connection.polygon];
+		connections.set(i, connection);
+	}
 }
 
 
