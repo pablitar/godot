@@ -555,10 +555,8 @@ void NavMap::sync() {
 
 	bool regen_polys = regenerate_polygons;
 	bool regen_links = regenerate_links;
-	
-	auto scounter = sync_counter;
 
-	sync_queue.enqueue(sync_counter, [scounter, regions_for_sync, regen_polys, regen_links, this]() mutable {
+	sync_queue.enqueue(sync_counter, [regions_for_sync, regen_polys, regen_links, this]() mutable {
 		LocalVector<gd::Polygon> polygons_for_sync;
 		// Check if we need to update the links.
 		if (regen_polys) {
