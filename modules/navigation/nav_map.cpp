@@ -546,9 +546,6 @@ void NavMap::sync() {
 
 		syncing_in_background = true;
 
-		if(regions.size() > 0) {
-			print_line(vformat("%d - Allocating %d", get_id(), sync_counter));
-		}
 		for (size_t i = 0; i < regions.size(); i++)
 		{
 			regions_for_sync[regions[i]->get_id()] = regions[i]->duplicate_for_sync();
@@ -717,9 +714,6 @@ void NavMap::sync() {
 			this->on_sync_finished(regions_for_sync, polygons_for_sync);
 		}
 
-		if(regions.size() > 0) {
-			print_line(vformat("Deallocating %d", scounter));
-		}
 		for (const uint32_t * k = nullptr; k = regions_for_sync.next(k);) {
 			memdelete(regions_for_sync[*k]);
 		}
