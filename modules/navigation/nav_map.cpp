@@ -536,21 +536,18 @@ void NavMap::sync() {
 	}
 
 	agents_dirty = false;
+	
+	if(syncing_in_background) {
+		return;
+	}
+
+	syncing_in_background = true;
 
 	HashMap<uint32_t, NavRegion *> regions_for_sync;
+
+	for (size_t i = 0; i < regions.size(); i++)
 	{
-		MutexLock lock(sync_mutex);
-		if(syncing_in_background) {
-			return;
-		}
-
-		syncing_in_background = true;
-
-		for (size_t i = 0; i < regions.size(); i++)
-		{
-			regions_for_sync[regions[i]->get_id()] = regions[i]->duplicate_for_sync();
-		}
-		
+		regions_for_sync[regions[i]->get_id()] = regions[i]->duplicate_for_sync();
 	}
 
 	bool regen_polys = regenerate_polygons;
