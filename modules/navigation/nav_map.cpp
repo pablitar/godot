@@ -159,7 +159,7 @@ Vector<Vector3> NavMap::get_path(Vector3 p_origin, Vector3 p_destination, bool p
 				const gd::Edge::Connection &connection = edge.connections[connection_index];
 
 				// Only consider the connection to another polygon if this polygon is in a region with compatible layers.
-				if ((p_navigation_layers & connection.polygon->owner->get_navigation_layers()) == 0) {
+				if ((p_navigation_layers & polygons[connection.polygon].owner->get_navigation_layers()) == 0) {
 					continue;
 				}
 
@@ -176,7 +176,7 @@ Vector<Vector3> NavMap::get_path(Vector3 p_origin, Vector3 p_destination, bool p
 				const Vector3 new_entry = Geometry::get_closest_point_to_segment(least_cost_poly.entry, pathway);
 				const float new_distance = (least_cost_poly.entry.distance_to(new_entry) * region_travel_cost) + region_enter_cost + least_cost_poly.traveled_distance;
 
-				int64_t already_visited_polygon_index = navigation_polys.find(gd::NavigationPoly(connection.polygon));
+				int64_t already_visited_polygon_index = navigation_polys.find(gd::NavigationPoly(&polygons[connection.polygon]));
 
 				if (already_visited_polygon_index != -1) {
 					// Polygon already visited, check if we can reduce the travel cost.
@@ -191,7 +191,7 @@ Vector<Vector3> NavMap::get_path(Vector3 p_origin, Vector3 p_destination, bool p
 					}
 				} else {
 					// Add the neighbour polygon to the reachable ones.
-					gd::NavigationPoly new_navigation_poly = gd::NavigationPoly(connection.polygon);
+					gd::NavigationPoly new_navigation_poly = gd::NavigationPoly(&polygons[connection.polygon]);
 					new_navigation_poly.self_id = navigation_polys.size();
 					new_navigation_poly.back_navigation_poly_id = least_cost_id;
 					new_navigation_poly.back_navigation_edge = connection.edge;
@@ -619,7 +619,7 @@ void NavMap::sync() {
 					if (connections[ek].size() <= 1) {
 						// Add the polygon/edge tuple to this key.
 						gd::Edge::Connection new_connection;
-						new_connection.polygon = &poly;
+						new_connection.polygon = poly_id;
 						new_connection.edge = p;
 						new_connection.pathway_start = poly.points[p].pos;
 						new_connection.pathway_end = poly.points[next_point].pos;
@@ -637,8 +637,8 @@ void NavMap::sync() {
 					// Connect edge that are shared in different polygons.
 					gd::Edge::Connection &c1 = E->get().write[0];
 					gd::Edge::Connection &c2 = E->get().write[1];
-					c1.polygon->edges[c1.edge].connections.push_back(c2);
-					c2.polygon->edges[c2.edge].connections.push_back(c1);
+					polygons_for_sync[c1.polygon].edges[c1.edge].connections.push_back(c2);
+					polygons_for_sync[c2.polygon].edges[c2.edge].connections.push_back(c1);
 					// Note: The pathway_start/end are full for those connection and do not need to be modified.
 				} else {
 					CRASH_COND_MSG(E->get().size() != 1, vformat("Number of connection != 1. Found: %d", E->get().size()));
@@ -655,17 +655,22 @@ void NavMap::sync() {
 			// connection, integration and path finding.
 			for (int i = 0; i < free_edges.size(); i++) {
 				const gd::Edge::Connection &free_edge = free_edges[i];
-				Vector3 edge_p1 = free_edge.polygon->points[free_edge.edge].pos;
-				Vector3 edge_p2 = free_edge.polygon->points[(free_edge.edge + 1) % free_edge.polygon->points.size()].pos;
+
+				gd::Polygon polygon = polygons_for_sync[free_edge.polygon];
+				
+				Vector3 edge_p1 = polygon.points[free_edge.edge].pos;
+				Vector3 edge_p2 = polygon.points[(free_edge.edge + 1) % polygons_for_sync[free_edge.polygon].points.size()].pos;
 
 				for (int j = 0; j < free_edges.size(); j++) {
 					const gd::Edge::Connection &other_edge = free_edges[j];
-					if (i == j || free_edge.polygon->owner == other_edge.polygon->owner) {
+					if (i == j || polygon.owner == polygon.owner) {
 						continue;
 					}
 
-					Vector3 other_edge_p1 = other_edge.polygon->points[other_edge.edge].pos;
-					Vector3 other_edge_p2 = other_edge.polygon->points[(other_edge.edge + 1) % other_edge.polygon->points.size()].pos;
+					gd::Polygon other_edge_polygon = polygons_for_sync[other_edge.polygon];
+
+					Vector3 other_edge_p1 = other_edge_polygon.points[other_edge.edge].pos;
+					Vector3 other_edge_p2 = other_edge_polygon.points[(other_edge.edge + 1) % other_edge_polygon.points.size()].pos;
 
 					// Compute the projection of the opposite edge on the current one
 					Vector3 edge_vector = edge_p2 - edge_p1;
@@ -702,10 +707,10 @@ void NavMap::sync() {
 					gd::Edge::Connection new_connection = other_edge;
 					new_connection.pathway_start = (self1 + other1) / 2.0;
 					new_connection.pathway_end = (self2 + other2) / 2.0;
-					free_edge.polygon->edges[free_edge.edge].connections.push_back(new_connection);
+					polygons_for_sync[free_edge.polygon].edges[free_edge.edge].connections.push_back(new_connection);
 
 					// Add the connection to the region_connection map.
-					free_edge.polygon->owner->get_connections().push_back(new_connection);
+					polygon.owner->get_connections().push_back(new_connection);
 				}
 			}
 
@@ -741,29 +746,12 @@ void NavMap::on_sync_finished(HashMap<uint32_t, NavRegion *> synced_regions, Loc
 		}
 	}
 
-	//REVISAR PARECE QUE LOS POLÍGONOS NO SE MAPEAN BIEN
 	polygons.resize(synced_polygons.size());
-
-	Map<gd::Polygon *, gd::Polygon *> pointer_mappings;
 
 	for (size_t i = 0; i < polygons.size(); i++)
 	{
 		polygons[i] = synced_polygons[i];
 		polygons[i].owner = region_pointers_mapping[polygons[i].owner->get_id()];
-		pointer_mappings[&synced_polygons[i]] = &polygons[i];
-	}
-
-	for (size_t i = 0; i < polygons.size(); i++)
-	{
-		for (size_t j = 0; j < polygons[i].edges.size(); j++)
-		{
-			for (size_t k = 0; k < polygons[i].edges[j].connections.size(); k++)
-			{
-				gd::Edge::Connection connection = polygons[i].edges[j].connections[k];
-				connection.polygon = pointer_mappings[connection.polygon];
-				polygons[i].edges[j].connections.set(k, connection);
-			}
-		}
 	}
 }
 

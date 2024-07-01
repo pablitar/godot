@@ -174,8 +174,7 @@ NavRegion * NavRegion::duplicate_for_sync() {
 		dup->polygons[i].owner = dup;
 	}
 
-	//Connections are not duplicated because it's expensive to update polygon references. 
-	//Plus, they are to be generated again during sync.
+	dup->connections = connections;
 	
 	return dup;
 }
@@ -190,30 +189,9 @@ void NavRegion::copy_polygons_and_connections(NavRegion * other_region) {
 	for (size_t i = 0; i < polygons.size(); i++)
 	{
 		polygons[i].owner = this;
-		pointer_mappings[&other_region->polygons[i]] = &polygons[i];
-	}
-
-	for (size_t i = 0; i < polygons.size(); i++)
-	{
-		for (size_t j = 0; j < polygons[i].edges.size(); j++)
-		{
-			for (size_t k = 0; k < polygons[i].edges[j].connections.size(); k++)
-			{
-				gd::Edge::Connection connection = polygons[i].edges[j].connections[k];
-				connection.polygon = pointer_mappings[connection.polygon];
-				polygons[i].edges[j].connections.set(k, connection);
-			}
-		}
 	}
 
 	connections = other_region->connections;
-
-	for (size_t i = 0; i < connections.size(); i++)
-	{
-		gd::Edge::Connection connection = connections[i];
-		connection.polygon = pointer_mappings[connection.polygon];
-		connections.set(i, connection);
-	}
 }
 
 

@@ -78,7 +78,7 @@ struct Edge {
 
 	/// The gateway in the edge, as, in some case, the whole edge might not be navigable.
 	struct Connection {
-		Polygon *polygon = nullptr;
+		int polygon = -1;
 		int edge = -1;
 		Vector3 pathway_start;
 		Vector3 pathway_end;
