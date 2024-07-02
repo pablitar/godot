@@ -38,7 +38,6 @@
 #include "core/os/thread_work_pool.h"
 #include "core/threaded_callable_queue.h"
 #include "core/os/mutex.h"
-#include "core/pair.h"
 #include "nav_utils.h"
 
 #include <KdTree.h>
