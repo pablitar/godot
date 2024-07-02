@@ -558,14 +558,14 @@ void NavMap::sync() {
 		// Check if we need to update the links.
 		if (regen_polys) {
 			const uint32_t * k = nullptr;
-			while(k = regions_for_sync.next(k)) {
+			while((k = regions_for_sync.next(k))) {
 				regions_for_sync[*k]->scratch_polygons();
 			}
 
 			regen_links = true;
 		}
 
-		for (const uint32_t * k = nullptr; k = regions_for_sync.next(k);) {
+		for (const uint32_t * k = nullptr; (k = regions_for_sync.next(k));) {
 			if (regions_for_sync[*k]->sync()) {
 				regen_links = true;
 			}
@@ -575,7 +575,7 @@ void NavMap::sync() {
 			// Remove regions connections.
 			
 			int count = 0;
-			for (const uint32_t * k = nullptr; k = regions_for_sync.next(k);) {
+			for (const uint32_t * k = nullptr; (k = regions_for_sync.next(k));) {
 				NavRegion * region = regions_for_sync[*k];
 				region->get_connections().clear();
 				count += region ->get_polygons().size();
@@ -586,7 +586,7 @@ void NavMap::sync() {
 
 			// Copy all region polygons in the map.
 			count = 0;
-			for (const uint32_t * k = nullptr; k = regions_for_sync.next(k);) {
+			for (const uint32_t * k = nullptr; (k = regions_for_sync.next(k));) {
 				NavRegion * region = regions_for_sync[*k];
 				const LocalVector<gd::Polygon> &polygons_source = region->get_polygons();
 				for (uint32_t n = 0; n < polygons_source.size(); n++) {
@@ -655,11 +655,11 @@ void NavMap::sync() {
 
 				for (int j = 0; j < free_edges.size(); j++) {
 					const gd::Edge::Connection &other_edge = free_edges[j];
-					if (i == j || polygon.owner == polygon.owner) {
+					gd::Polygon other_edge_polygon = polygons_for_sync[other_edge.polygon];
+					
+					if (i == j || polygon.owner == other_edge_polygon.owner) {
 						continue;
 					}
-
-					gd::Polygon other_edge_polygon = polygons_for_sync[other_edge.polygon];
 
 					Vector3 other_edge_p1 = other_edge_polygon.points[other_edge.edge].pos;
 					Vector3 other_edge_p2 = other_edge_polygon.points[(other_edge.edge + 1) % other_edge_polygon.points.size()].pos;
