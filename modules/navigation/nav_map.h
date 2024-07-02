@@ -85,15 +85,16 @@ class NavMap : public NavRid {
 	/// Change the id each time the map is updated.
 	uint32_t map_update_id = 0;
 
+	bool syncing_in_background = false;
+	Mutex sync_mutex;
+	uint64_t sync_counter = 0;
+
 #ifndef NO_THREADS
 	/// Pooled threads for computing steps
 	ThreadWorkPool step_work_pool;
 	
 	/// Callable Thread Queue for sync operations
 	ThreadedCallableQueue<uint64_t> sync_queue;
-	uint64_t sync_counter = 0;
-	Mutex sync_mutex;
-	bool syncing_in_background = false;
 	
 #endif // NO_THREADS
 

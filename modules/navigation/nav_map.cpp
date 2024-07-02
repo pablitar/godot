@@ -553,7 +553,7 @@ void NavMap::sync() {
 	bool regen_polys = regenerate_polygons;
 	bool regen_links = regenerate_links;
 
-	sync_queue.enqueue(sync_counter, [regions_for_sync, regen_polys, regen_links, this]() mutable {
+	std::function<void()> sync_lambda = [regions_for_sync, regen_polys, regen_links, this]() mutable {
 		LocalVector<gd::Polygon> polygons_for_sync;
 		// Check if we need to update the links.
 		if (regen_polys) {
@@ -717,7 +717,13 @@ void NavMap::sync() {
 	
 		// Update the update ID.
 		map_update_id = (map_update_id + 1) % 9999999;
-	});
+	};
+
+#ifndef NO_THREADS
+	sync_queue.enqueue(sync_counter, sync_lambda);
+#else
+	sync_lambda();
+#endif
 	
 	regenerate_polygons = false;
 	regenerate_links = false;
