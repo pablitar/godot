@@ -542,16 +542,20 @@ void NavMap::sync() {
 	}
 
 	syncing_in_background = true;
+	bool regen_polys;
+	bool regen_links;
 
 	HashMap<uint32_t, NavRegion *> regions_for_sync;
-
-	for (size_t i = 0; i < regions.size(); i++)
 	{
-		regions_for_sync[regions[i]->get_id()] = regions[i]->duplicate_for_sync();
-	}
+		MutexLock lock(sync_mutex);
+		for (size_t i = 0; i < regions.size(); i++)
+		{
+			regions_for_sync[regions[i]->get_id()] = regions[i]->duplicate_for_sync();
+		}
 
-	bool regen_polys = regenerate_polygons;
-	bool regen_links = regenerate_links;
+		regen_polys = regenerate_polygons;
+		regen_links = regenerate_links;
+	}
 
 	std::function<void()> sync_lambda = [regions_for_sync, regen_polys, regen_links, this]() mutable {
 		LocalVector<gd::Polygon> polygons_for_sync;

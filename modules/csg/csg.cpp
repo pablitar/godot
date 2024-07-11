@@ -570,6 +570,8 @@ bool CSGBrushOperation::MeshMerge::_bvh_inside(FaceBVH *facebvhptr, int p_max_de
 
 	while (true) {
 		uint32_t node = stack[level] & NODE_IDX_MASK;
+		//Evil print is evil. This print seems to fix an overflow going on somewhere in the stack.
+		if(node == 32765) print_line("NODE IS TOO BIG");
 		const FaceBVH *current_facebvhptr = &(facebvhptr[node]);
 		bool done = false;
 
