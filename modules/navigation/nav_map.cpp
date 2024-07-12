@@ -713,7 +713,7 @@ void NavMap::sync() {
 			this->on_sync_finished(regions_for_sync, polygons_for_sync);
 		}
 
-		for (const uint32_t * k = nullptr; k = regions_for_sync.next(k);) {
+		for (const uint32_t * k = nullptr; (k = regions_for_sync.next(k));) {
 			memdelete(regions_for_sync[*k]);
 		}
 
