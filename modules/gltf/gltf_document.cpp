@@ -3241,10 +3241,10 @@ Error GLTFDocument::_parse_textures(Ref<GLTFState> p_state) {
 		if (p_state->external_images_paths.has(t->get_src_image())) {
 			tex = ResourceLoader::load(p_state->external_images_paths[t->get_src_image()]);
 		} else {
-			Ref<ImageTexture> imgTex;
-			imgTex.instance();
-			imgTex->create_from_image(p_state->images[t->get_src_image()]);
-			tex = imgTex;
+			Ref<ImageTexture> img_tex;
+			img_tex.instance();
+			img_tex->create_from_image(p_state->images[t->get_src_image()]);
+			tex = img_tex;
 		}
 
 		// Set texture filter and repeat based on sampler settings
