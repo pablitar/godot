@@ -3238,19 +3238,22 @@ Error GLTFDocument::_parse_textures(Ref<GLTFState> p_state) {
 		Ref<Texture> tex;
 
 		// Create and cache the texture used in the engine
-		if(p_state->external_images_paths.has(t->get_src_image())) {
+		if (p_state->external_images_paths.has(t->get_src_image())) {
 			tex = ResourceLoader::load(p_state->external_images_paths[t->get_src_image()]);
 		} else {
 			Ref<ImageTexture> imgTex;
 			imgTex.instance();
 			imgTex->create_from_image(p_state->images[t->get_src_image()]);
+
+			// Set texture filter and repeat based on sampler settings
+			const Ref<GLTFTextureSampler> sampler = _get_sampler_for_texture(p_state, i);
+			Texture::Flags flags = sampler->get_texture_flags();
+			imgTex->set_flags(flags);
+
 			tex = imgTex;
 		}
 
-		// Set texture filter and repeat based on sampler settings
-		const Ref<GLTFTextureSampler> sampler = _get_sampler_for_texture(p_state, i);
-		Texture::Flags flags = sampler->get_texture_flags();
-		tex->set_flags(flags);
+
 
 		p_state->texture_cache.insert(i, tex);
 	}
