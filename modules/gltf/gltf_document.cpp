@@ -3253,8 +3253,6 @@ Error GLTFDocument::_parse_textures(Ref<GLTFState> p_state) {
 			tex = imgTex;
 		}
 
-
-
 		p_state->texture_cache.insert(i, tex);
 	}
 
