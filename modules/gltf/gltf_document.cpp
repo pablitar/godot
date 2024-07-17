@@ -3238,7 +3238,7 @@ Error GLTFDocument::_parse_textures(Ref<GLTFState> p_state) {
 		Ref<Texture> tex;
 
 		// Create and cache the texture used in the engine
-		if(p_state->external_images_paths.has(t->get_src_image())) {
+		if (p_state->external_images_paths.has(t->get_src_image())) {
 			tex = ResourceLoader::load(p_state->external_images_paths[t->get_src_image()]);
 		} else {
 			Ref<ImageTexture> imgTex;
