@@ -3244,14 +3244,15 @@ Error GLTFDocument::_parse_textures(Ref<GLTFState> p_state) {
 			Ref<ImageTexture> img_tex;
 			img_tex.instance();
 			img_tex->create_from_image(p_state->images[t->get_src_image()]);
+			
+			// Set texture filter and repeat based on sampler settings. Only supported for embedded textures
+			const Ref<GLTFTextureSampler> sampler = _get_sampler_for_texture(p_state, i);
+			Texture::Flags flags = sampler->get_texture_flags();
+			img_tex->set_flags(flags);
+			
 			tex = img_tex;
 		}
-
-		// Set texture filter and repeat based on sampler settings
-		const Ref<GLTFTextureSampler> sampler = _get_sampler_for_texture(p_state, i);
-		Texture::Flags flags = sampler->get_texture_flags();
-		tex->set_flags(flags);
-
+		
 		p_state->texture_cache.insert(i, tex);
 	}
 
